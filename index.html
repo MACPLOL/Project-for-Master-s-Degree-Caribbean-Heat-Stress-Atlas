@@ -1,2 +1,66 @@
-Hello World!
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Caribbean Heat Stress Atlas — Base Map</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100vh; width: 100vw; }
+    /* Minimal legend styling */
+    .legend {
+      background: #fff; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.15);
+      font: 12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      min-width: 160px;
+    }
+    .legend h4 { margin: 0 0 6px; font-size: 12px; }
+    .legend .placeholder { color: #666; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // Base map over Puerto Rico
+    const prCenter = [18.2208, -66.5901];
+    const map = L.map('map', { center: prCenter, zoom: 8 });
+
+    // Add OSM tiles
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Scale bar
+    L.control.scale({ metric:false, imperial:true }).addTo(map);
+
+    // --- Minimal UI shell (no data yet) ---
+    // Register baselayers (OSM already on map)
+    const baseLayers = {
+      "OpenStreetMap": osm
+    };
+    const overlays = {}; // will hold PR boundary and rasters later
+
+    // Layer control (open during dev)
+    const layerControl = L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+
+    // Legend placeholder
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create('div', 'legend');
+      div.innerHTML = `<h4>Legend</h4><div class="placeholder">No layer selected.</div>`;
+      return div;
+    };
+    legend.addTo(map);
+  </script>
+</body>
+</html>
 
