@@ -20,6 +20,17 @@
     }
     .legend h4 { margin: 0 0 6px; font-size: 12px; }
     .legend .placeholder { color: #666; }
+
+    .slider-wrap {
+  background:#fff; padding:8px 10px; border:1px solid #ccc; border-radius:6px;
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+  font:12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  min-width:220px;
+}
+.slider-wrap .label { display:block; margin-bottom:6px; font-weight:600; }
+.slider-wrap input[type="range"] { width:100%; }
+.slider-wrap .value { font-variant-numeric: tabular-nums; }
+
   </style>
 </head>
 <body>
@@ -60,6 +71,25 @@
       return div;
     };
     legend.addTo(map);
+
+    // --- Time slider placeholder (disabled until data exists) ---
+const SliderControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: function () {
+    const wrap = L.DomUtil.create('div', 'slider-wrap');
+    wrap.innerHTML = `
+      <span class="label">Time</span>
+      <input id="timeRange" type="range" min="0" max="11" value="0" disabled />
+      <span class="value" id="timeLabel">Not available</span>
+    `;
+    // prevent map drag/zoom while interacting with control
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.disableScrollPropagation(wrap);
+    return wrap;
+  }
+});
+map.addControl(new SliderControl());
+
   </script>
 </body>
 </html>
