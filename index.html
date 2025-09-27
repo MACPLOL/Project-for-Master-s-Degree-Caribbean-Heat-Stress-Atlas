@@ -72,6 +72,27 @@
     };
     legend.addTo(map);
 
+    // --- Puerto Rico boundary overlay (temporary bbox) ---
+    //NEED TO UPDATE NOT FINISHED !!!!!!!!!!!!!!!!
+    
+fetch('data/pr_boundary.geojson')
+  .then(r => r.json())
+  .then(geo => {
+    const prBoundary = L.geoJSON(geo, {
+      style: { color: '#333', weight: 2, fill: false },
+      onEachFeature: (f, layer) => {
+        const label = f?.properties?.name || 'Puerto Rico';
+        layer.bindTooltip(label, { sticky: true });
+      }
+    }).addTo(map);
+
+    // Add to layer control & zoom to it
+    layerControl.addOverlay(prBoundary, 'Puerto Rico boundary');
+    map.fitBounds(prBoundary.getBounds(), { padding: [12, 12] });
+  })
+  .catch(err => console.error('Failed to load PR boundary:', err));
+
+
     // --- Time slider placeholder (disabled until data exists) ---
 const SliderControl = L.Control.extend({
   options: { position: 'topright' },

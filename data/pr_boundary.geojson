@@ -1,0 +1,19 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Puerto Rico (temp bbox)" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-67.35, 17.90],
+          [-65.20, 17.90],
+          [-65.20, 18.60],
+          [-67.35, 18.60],
+          [-67.35, 17.90]
+        ]]
+      }
+    }
+  ]
+}
