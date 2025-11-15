@@ -111,6 +111,43 @@ const SliderControl = L.Control.extend({
 });
 map.addControl(new SliderControl());
 
+// --- Time slider wiring (dummy years for now) ---
+
+// Later these will match the actual years in your dataset pacienciaaaa
+const YEARS = ['2000', '2005', '2010', '2015', '2020'];
+
+function initTimeSlider(years) {
+  const range = document.getElementById('timeRange');
+  const label = document.getElementById('timeLabel');
+
+  if (!range || !label) {
+    console.warn('Time slider elements not found in DOM');
+    return;
+  }
+
+  // Configure the slider based on how many years we have
+  range.disabled = false;                    // enable it
+  range.min = 0;
+  range.max = years.length - 1;
+  range.value = 0;
+
+  // Set initial label
+  label.textContent = years[0];
+
+  // When user moves the slider…
+  range.addEventListener('input', () => {
+    const idx = Number(range.value);
+    const year = years[idx];
+    label.textContent = year;
+
+    // For now, just log. Later: update map layer for this year.
+    console.log('Selected year:', year);
+    // TODO: drawStationsForYear(year);
+  });
+}
+
+// Initialize the slider once the control has been added to the map
+initTimeSlider(YEARS);
   </script>
 </body>
 </html>
