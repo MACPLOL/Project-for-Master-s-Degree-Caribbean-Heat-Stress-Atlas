@@ -1,0 +1,59 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-66.1, 18.45]
+      },
+      "properties": {
+        "name": "San Juan",
+        "country": "Puerto Rico",
+        "values": {
+          "2000": 31.2,
+          "2005": 31.8,
+          "2010": 32.4,
+          "2015": 32.9,
+          "2020": 33.5
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-61.75, 17.12]
+      },
+      "properties": {
+        "name": "St. John's",
+        "country": "Antigua and Barbuda",
+        "values": {
+          "2000": 30.5,
+          "2005": 31.1,
+          "2010": 31.7,
+          "2015": 32.3,
+          "2020": 32.9
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-61.52, 10.65]
+      },
+      "properties": {
+        "name": "Port of Spain",
+        "country": "Trinidad and Tobago",
+        "values": {
+          "2000": 30.8,
+          "2005": 31.4,
+          "2010": 32.0,
+          "2015": 32.6,
+          "2020": 33.2
+        }
+      }
+    }
+  ]
+}

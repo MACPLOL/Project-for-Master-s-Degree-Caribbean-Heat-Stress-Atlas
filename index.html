@@ -92,6 +92,19 @@ fetch('data/pr_boundary.geojson')
   })
   .catch(err => console.error('Failed to load PR boundary:', err));
 
+// --- Station data (placeholder wiring) ---
+let stationsData = null;
+
+fetch('data/stations_example.geojson')
+  .then(r => r.json())
+  .then(geo => {
+    stationsData = geo;
+    console.log('Loaded stations data:', stationsData);
+    // Later: drawStationsForYear(YEARS[0]);
+  })
+  .catch(err => console.error('Failed to load stations data:', err));
+
+
 
     // --- Time slider placeholder (disabled until data exists) ---
 const SliderControl = L.Control.extend({
