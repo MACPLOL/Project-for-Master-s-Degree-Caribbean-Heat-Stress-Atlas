@@ -63,14 +63,46 @@
     // Layer control (open during dev)
     const layerControl = L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
 
-    // Legend placeholder
     const legend = L.control({ position: 'bottomright' });
-    legend.onAdd = function () {
-      const div = L.DomUtil.create('div', 'legend');
-      div.innerHTML = `<h4>Legend</h4><div class="placeholder">No layer selected.</div>`;
-      return div;
-    };
-    legend.addTo(map);
+legend.onAdd = function () {
+  const div = L.DomUtil.create('div', 'legend');
+  div.innerHTML = `
+    <h4>Heat index (°C)</h4>
+    <div><span style="
+      display:inline-block;width:14px;height:14px;
+      background:#4575b4;border:1px solid #ccc;margin-right:6px;"></span>
+      < 31
+    </div>
+    <div><span style="
+      display:inline-block;width:14px;height:14px;
+      background:#91bfdb;border:1px solid #ccc;margin-right:6px;"></span>
+      31 – 32
+    </div>
+    <div><span style="
+      display:inline-block;width:14px;height:14px;
+      background:#fee090;border:1px solid #ccc;margin-right:6px;"></span>
+      32 – 33
+    </div>
+    <div><span style="
+      display:inline-block;width:14px;height:14px;
+      background:#fdae61;border:1px solid #ccc;margin-right:6px;"></span>
+      33 – 34
+    </div>
+    <div><span style="
+      display:inline-block;width:14px;height:14px;
+      background:#d73027;border:1px solid #ccc;margin-right:6px;"></span>
+      ≥ 34
+    </div>
+    <div style="margin-top:4px;"><span style="
+      display:inline-block;width:14px;height:14px;
+      background:#999999;border:1px solid #ccc;margin-right:6px;"></span>
+      No data
+    </div>
+  `;
+  return div;
+};
+legend.addTo(map);
+
 
     // --- Puerto Rico boundary overlay (temporary bbox) ---
     //NEED TO UPDATE NOT FINISHED !!!!!!!!!!!!!!!!
