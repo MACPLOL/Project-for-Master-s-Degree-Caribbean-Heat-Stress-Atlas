@@ -40,6 +40,36 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
+      // ---------------------------------------------------------
+  // Caribbean Heat Stress Atlas — Metric Definitions (PLAN)
+  //
+  // For each station and year, the processed dataset will include:
+  //
+  // 1) hot_days_32c[year]
+  //    - Annual number of "very hot days".
+  //    - Definition: days where daily maximum temperature TMAX ≥ 32 °C.
+  //
+  // 2) mean_dewpoint_hot[year]
+  //    - Average dew point (°C) on very hot days (TMAX ≥ 32 °C).
+  //
+  // 3) mean_rh_hot[year]
+  //    - Average relative humidity (%) on very hot days (TMAX ≥ 32 °C).
+  //
+  // 4) steam_days[year]
+  //    - "Steam stress" or compound hot–humid days.
+  //    - Definition: days where TMAX ≥ 32 °C AND dew point ≥ 24 °C.
+  //
+  // Map usage (current plan):
+  //  - Circle color: based on a chosen primary metric
+  //    (initially hot_days_32c, later possibly steam_days).
+  //  - Popup for selected year: will show all four metrics.
+  //
+  // NOTE: Current values in stations_example.geojson are placeholders.
+  //       They will be replaced by real values from processed NOAA
+  //       GHCN-Daily data in a later step.
+  // ---------------------------------------------------------
+
+
     // Base map over Puerto Rico
     const prCenter = [18.2208, -66.5901];
     const map = L.map('map', { center: prCenter, zoom: 8 });
