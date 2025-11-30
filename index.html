@@ -97,31 +97,31 @@
 legend.onAdd = function () {
   const div = L.DomUtil.create('div', 'legend');
   div.innerHTML = `
-    <h4>Heat index (°C)</h4>
+    <h4>Very hot days per year<br/><small>(Tmax ≥ 32 °C)</small></h4>
     <div><span style="
       display:inline-block;width:14px;height:14px;
       background:#4575b4;border:1px solid #ccc;margin-right:6px;"></span>
-      < 31
+      &lt; 30 days
     </div>
     <div><span style="
       display:inline-block;width:14px;height:14px;
       background:#91bfdb;border:1px solid #ccc;margin-right:6px;"></span>
-      31 – 32
+      30 – 59 days
     </div>
     <div><span style="
       display:inline-block;width:14px;height:14px;
       background:#fee090;border:1px solid #ccc;margin-right:6px;"></span>
-      32 – 33
+      60 – 89 days
     </div>
     <div><span style="
       display:inline-block;width:14px;height:14px;
       background:#fdae61;border:1px solid #ccc;margin-right:6px;"></span>
-      33 – 34
+      90 – 119 days
     </div>
     <div><span style="
       display:inline-block;width:14px;height:14px;
       background:#d73027;border:1px solid #ccc;margin-right:6px;"></span>
-      ≥ 34
+      ≥ 120 days
     </div>
     <div style="margin-top:4px;"><span style="
       display:inline-block;width:14px;height:14px;
@@ -132,6 +132,7 @@ legend.onAdd = function () {
   return div;
 };
 legend.addTo(map);
+
 
 
     // --- Puerto Rico boundary overlay (temporary bbox) ---
@@ -161,11 +162,11 @@ let stationsOverlayAdded = false;  // so we only add overlay once
 
 function getColorForValue(v) {
   if (v == null) return '#999999';   // no data
-  if (v < 31)   return '#4575b4';
-  if (v < 32)   return '#91bfdb';
-  if (v < 33)   return '#fee090';
-  if (v < 34)   return '#fdae61';
-  return '#d73027';
+  if (v < 30)   return '#4575b4';    // < 30 days
+  if (v < 60)   return '#91bfdb';    // 30–59
+  if (v < 90)   return '#fee090';    // 60–89
+  if (v < 120)  return '#fdae61';    // 90–119
+  return '#d73027';                  // ≥ 120
 }
 
 function drawStationsForYear(year) {
@@ -192,30 +193,45 @@ function drawStationsForYear(year) {
     },
     onEachFeature: (feature, layer) => {
       const val = feature.properties.values[year];
+      const display = (val != null) ? `${val} days` : 'N/A';
+
       layer.bindPopup(`
         <strong>${feature.properties.name}</strong><br/>
         ${feature.properties.country}<br/>
-        ${year} value: ${val != null ? val.toFixed(1) + ' °C' : 'N/A'}
+        Year: ${year}<br/>
+        Very hot days (Tmax ≥ 32 °C): <strong>${display}</strong>
       `);
     }
   }).addTo(map);
 
   // Add to layer control only once
   if (!stationsOverlayAdded) {
-    layerControl.addOverlay(stationLayer, 'Heat metric (example)');
+    layerControl.addOverlay(stationLayer, 'Very hot days (Tmax ≥ 32 °C)');
     stationsOverlayAdded = true;
   }
 }
 
 
-fetch('data/stations_example.geojson')
+
+fetch('data/stations_san_juan_hotdays.geojson')
   .then(r => r.json())
   .then(geo => {
     stationsData = geo;
     console.log('Loaded stations data:', stationsData);
-    drawStationsForYear(YEARS[0]);   // draw initial markers for first year
+
+    // Derive list of years from the first feature's values
+    const firstFeature = stationsData.features[0];
+    YEARS = Object.keys(firstFeature.properties.values)
+      .sort();  // sort as strings; fine for YYYY
+
+    // Initialize slider with actual years
+    initTimeSlider(YEARS);
+
+    // Draw markers for the first year
+    drawStationsForYear(YEARS[0]);
   })
   .catch(err => console.error('Failed to load stations data:', err));
+
 
 
 
@@ -239,8 +255,10 @@ map.addControl(new SliderControl());
 
 // --- Time slider wiring (dummy years for now) ---
 
-// Later these will match the actual years in your dataset pacienciaaaa
-const YEARS = ['2000', '2005', '2010', '2015', '2020'];
+
+let YEARS = [];   // will be filled once data loads
+
+
 
 function initTimeSlider(years) {
   const range = document.getElementById('timeRange');
@@ -270,8 +288,6 @@ function initTimeSlider(years) {
 });
 }
 
-// Initialize the slider once the control has been added to the map
-initTimeSlider(YEARS);
   </script>
 </body>
 </html>
