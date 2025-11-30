@@ -181,6 +181,11 @@ function drawStationsForYear(year) {
   }
 
   stationLayer = L.geoJSON(stationsData, {
+    // Only draw features that have a real value for this year
+    filter: (feature) => {
+      const v = feature.properties.values[year];
+      return v != null && !Number.isNaN(v);
+    },
     pointToLayer: (feature, latlng) => {
       const val = feature.properties.values[year];
       return L.circleMarker(latlng, {
@@ -193,8 +198,7 @@ function drawStationsForYear(year) {
     },
     onEachFeature: (feature, layer) => {
       const val = feature.properties.values[year];
-      const display = (val != null) ? `${val} days` : 'N/A';
-
+      const display = `${val} days`;
       layer.bindPopup(`
         <strong>${feature.properties.name}</strong><br/>
         ${feature.properties.country}<br/>
@@ -213,21 +217,16 @@ function drawStationsForYear(year) {
 
 
 
-fetch('data/stations_san_juan_hotdays.geojson')
+
+fetch('data/stations_all_hotdays.geojson')
   .then(r => r.json())
   .then(geo => {
     stationsData = geo;
     console.log('Loaded stations data:', stationsData);
 
-    // Derive list of years from the first feature's values
     const firstFeature = stationsData.features[0];
-    YEARS = Object.keys(firstFeature.properties.values)
-      .sort();  // sort as strings; fine for YYYY
-
-    // Initialize slider with actual years
+    YEARS = Object.keys(firstFeature.properties.values).sort();
     initTimeSlider(YEARS);
-
-    // Draw markers for the first year
     drawStationsForYear(YEARS[0]);
   })
   .catch(err => console.error('Failed to load stations data:', err));
