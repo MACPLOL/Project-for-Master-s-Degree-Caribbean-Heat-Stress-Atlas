@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Caribbean Heat Stress Atlas — Base Map</title>
+  <title>Caribbean Heat Stress Atlas — Puerto Rico</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -11,26 +11,44 @@
   <style>
     html, body { height: 100%; margin: 0; }
     #map { height: 100vh; width: 100vw; }
+
     /* Minimal legend styling */
     .legend {
-      background: #fff; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px;
+      background: #fff;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
       box-shadow: 0 1px 3px rgba(0,0,0,.15);
       font: 12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-      min-width: 160px;
+      min-width: 180px;
     }
     .legend h4 { margin: 0 0 6px; font-size: 12px; }
     .legend .placeholder { color: #666; }
 
-    .slider-wrap {
-  background:#fff; padding:8px 10px; border:1px solid #ccc; border-radius:6px;
-  box-shadow:0 1px 3px rgba(0,0,0,.15);
-  font:12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  min-width:220px;
-}
-.slider-wrap .label { display:block; margin-bottom:6px; font-weight:600; }
-.slider-wrap input[type="range"] { width:100%; }
-.slider-wrap .value { font-variant-numeric: tabular-nums; }
-
+    /* Shared card style for controls */
+    .slider-wrap,
+    .metric-wrap {
+      background:#fff;
+      padding:8px 10px;
+      border:1px solid #ccc;
+      border-radius:6px;
+      box-shadow:0 1px 3px rgba(0,0,0,.15);
+      font:12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      min-width:220px;
+      margin-bottom:4px;
+    }
+    .slider-wrap .label,
+    .metric-wrap .label {
+      display:block;
+      margin-bottom:6px;
+      font-weight:600;
+    }
+    .slider-wrap input[type="range"] { width:100%; }
+    .slider-wrap .value { font-variant-numeric: tabular-nums; }
+    .metric-wrap select {
+      width:100%;
+      font-size:12px;
+    }
   </style>
 </head>
 <body>
@@ -40,254 +58,350 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-      // ---------------------------------------------------------
-  // Caribbean Heat Stress Atlas — Metric Definitions (PLAN)
+  // ---------------------------------------------------------
+  // Caribbean Heat Stress Atlas — Temperature-only metrics
   //
-  // For each station and year, the processed dataset will include:
+  // Metrics per station & year (already computed in GeoJSON):
+  //   hot_days_32      : # days with Tmax ≥ 32 °C
+  //   hot_days_35      : # days with Tmax ≥ 35 °C
+  //   warm_nights_24   : # nights with Tmin ≥ 24 °C
+  //   oppressive_days  : # days with Tmax ≥ 32 °C AND Tmin ≥ 24 °C
   //
-  // 1) hot_days_32c[year]
-  //    - Annual number of "very hot days".
-  //    - Definition: days where daily maximum temperature TMAX ≥ 32 °C.
-  //
-  // 2) mean_dewpoint_hot[year]
-  //    - Average dew point (°C) on very hot days (TMAX ≥ 32 °C).
-  //
-  // 3) mean_rh_hot[year]
-  //    - Average relative humidity (%) on very hot days (TMAX ≥ 32 °C).
-  //
-  // 4) steam_days[year]
-  //    - "Steam stress" or compound hot–humid days.
-  //    - Definition: days where TMAX ≥ 32 °C AND dew point ≥ 24 °C.
-  //
-  // Map usage (current plan):
-  //  - Circle color: based on a chosen primary metric
-  //    (initially hot_days_32c, later possibly steam_days).
-  //  - Popup for selected year: will show all four metrics.
-  //
-  // NOTE: Current values in stations_example.geojson are placeholders.
-  //       They will be replaced by real values from processed NOAA
-  //       GHCN-Daily data in a later step.
+  //   hottest_month_index[year] : 1–12 (month with highest mean Tmax)
+  //   hottest_month_tmax[year]  : mean Tmax in that month (°C)
+  //   hottest_month_tmin[year]  : mean Tmin in that month (°C)
   // ---------------------------------------------------------
 
+  // --- Map setup ---
+  const prCenter = [18.2208, -66.5901];
+  const map = L.map('map', { center: prCenter, zoom: 8 });
 
-    // Base map over Puerto Rico
-    const prCenter = [18.2208, -66.5901];
-    const map = L.map('map', { center: prCenter, zoom: 8 });
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-    // Add OSM tiles
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+  L.control.scale({ metric:false, imperial:true }).addTo(map);
 
-    // Scale bar
-    L.control.scale({ metric:false, imperial:true }).addTo(map);
+  const baseLayers = { "OpenStreetMap": osm };
+  const overlays = {};
+  const layerControl = L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
 
-    // --- Minimal UI shell (no data yet) ---
-    // Register baselayers (OSM already on map)
-    const baseLayers = {
-      "OpenStreetMap": osm
-    };
-    const overlays = {}; // will hold PR boundary and rasters later
+  // --- Globals for station data & time/metric state ---
+  let stationsData = null;
+  let stationLayer = null;
+  let stationsOverlayAdded = false;
 
-    // Layer control (open during dev)
-    const layerControl = L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+  let YEARS = [];                     // filled after data loads
+  let currentMetric = 'hot_days_32';  // default metric
 
-    const legend = L.control({ position: 'bottomright' });
-legend.onAdd = function () {
-  const div = L.DomUtil.create('div', 'legend');
-  div.innerHTML = `
-    <h4>Very hot days per year<br/><small>(Tmax ≥ 32 °C)</small></h4>
-    <div><span style="
-      display:inline-block;width:14px;height:14px;
-      background:#4575b4;border:1px solid #ccc;margin-right:6px;"></span>
-      &lt; 30 days
-    </div>
-    <div><span style="
-      display:inline-block;width:14px;height:14px;
-      background:#91bfdb;border:1px solid #ccc;margin-right:6px;"></span>
-      30 – 59 days
-    </div>
-    <div><span style="
-      display:inline-block;width:14px;height:14px;
-      background:#fee090;border:1px solid #ccc;margin-right:6px;"></span>
-      60 – 89 days
-    </div>
-    <div><span style="
-      display:inline-block;width:14px;height:14px;
-      background:#fdae61;border:1px solid #ccc;margin-right:6px;"></span>
-      90 – 119 days
-    </div>
-    <div><span style="
-      display:inline-block;width:14px;height:14px;
-      background:#d73027;border:1px solid #ccc;margin-right:6px;"></span>
-      ≥ 120 days
-    </div>
-    <div style="margin-top:4px;"><span style="
-      display:inline-block;width:14px;height:14px;
-      background:#999999;border:1px solid #ccc;margin-right:6px;"></span>
-      No data
-    </div>
-  `;
-  return div;
-};
-legend.addTo(map);
+  const METRIC_LABELS = {
+    hot_days_32:     'Hot days (Tmax ≥ 32 °C)',
+    hot_days_35:     'Very hot days (Tmax ≥ 35 °C)',
+    warm_nights_24:  'Warm nights (Tmin ≥ 24 °C)',
+    oppressive_days: 'Oppressive days (Tmax ≥ 32 °C & Tmin ≥ 24 °C)'
+  };
 
+  const MONTH_NAMES = [null, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+  function monthNameFromIndex(idx) {
+    return MONTH_NAMES[idx] || `Month ${idx}`;
+  }
 
-    // --- Puerto Rico boundary overlay (temporary bbox) ---
-    //NEED TO UPDATE NOT FINISHED !!!!!!!!!!!!!!!!
-    
-fetch('data/pr_boundary.geojson')
-  .then(r => r.json())
-  .then(geo => {
-    const prBoundary = L.geoJSON(geo, {
-      style: { color: '#333', weight: 2, fill: false },
-      onEachFeature: (f, layer) => {
-        const label = f?.properties?.name || 'Puerto Rico';
-        layer.bindTooltip(label, { sticky: true });
+  // --- Legend ---
+
+  function legendTitleForMetric(metricKey) {
+    switch (metricKey) {
+      case 'hot_days_32':
+        return 'Hot days per year<br/><small>(Tmax ≥ 32 °C)</small>';
+      case 'hot_days_35':
+        return 'Very hot days per year<br/><small>(Tmax ≥ 35 °C)</small>';
+      case 'warm_nights_24':
+        return 'Warm nights per year<br/><small>(Tmin ≥ 24 °C)</small>';
+      case 'oppressive_days':
+        return 'Hot + warm days per year<br/><small>(Tmax ≥ 32 °C & Tmin ≥ 24 °C)</small>';
+      default:
+        return 'Days per year';
+    }
+  }
+
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = function () {
+    const div = L.DomUtil.create('div', 'legend');
+    div.innerHTML = `
+      <h4>${legendTitleForMetric(currentMetric)}</h4>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#4575b4;border:1px solid #ccc;margin-right:6px;"></span>
+        &lt; 30 days
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#91bfdb;border:1px solid #ccc;margin-right:6px;"></span>
+        30 – 59 days
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#fee090;border:1px solid #ccc;margin-right:6px;"></span>
+        60 – 89 days
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#fdae61;border:1px solid #ccc;margin-right:6px;"></span>
+        90 – 119 days
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#d73027;border:1px solid #ccc;margin-right:6px;"></span>
+        ≥ 120 days
+      </div>
+      <div style="margin-top:4px;"><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#999999;border:1px solid #ccc;margin-right:6px;"></span>
+        No data
+      </div>
+    `;
+    return div;
+  };
+  legend.addTo(map);
+
+  function updateLegendTitle() {
+    const h4 = document.querySelector('.legend h4');
+    if (h4) h4.innerHTML = legendTitleForMetric(currentMetric);
+  }
+
+  // --- Puerto Rico boundary (same as before) ---
+  fetch('data/pr_boundary.geojson')
+    .then(r => r.json())
+    .then(geo => {
+      const prBoundary = L.geoJSON(geo, {
+        style: { color: '#333', weight: 2, fill: false },
+        onEachFeature: (f, layer) => {
+          const label = f?.properties?.name || 'Puerto Rico (temp bbox)';
+          layer.bindTooltip(label, { sticky: true });
+        }
+      }).addTo(map);
+
+      layerControl.addOverlay(prBoundary, 'Puerto Rico boundary');
+      map.fitBounds(prBoundary.getBounds(), { padding: [12, 12] });
+    })
+    .catch(err => console.error('Failed to load PR boundary:', err));
+
+  // --- Color scale (shared by all metrics) ---
+  function getColorForValue(v) {
+    if (v == null || Number.isNaN(v)) return '#999999';   // no data
+    if (v < 30)   return '#4575b4';   // < 30 days
+    if (v < 60)   return '#91bfdb';   // 30–59
+    if (v < 90)   return '#fee090';   // 60–89
+    if (v < 120)  return '#fdae61';   // 90–119
+    return '#d73027';                 // ≥ 120
+  }
+
+  // --- Draw stations for given year & metric ---
+  function drawStationsForYear(year) {
+    if (!stationsData) {
+      console.warn('No stationsData loaded yet');
+      return;
+    }
+
+    if (stationLayer) {
+      map.removeLayer(stationLayer);
+    }
+
+    stationLayer = L.geoJSON(stationsData, {
+      // Only draw if this feature has a value for the metric+year
+      filter: (feature) => {
+        const m = feature.properties.metrics;
+        if (!m || !m[currentMetric]) return false;
+        const v = m[currentMetric][year];
+        return v != null && !Number.isNaN(v);
+      },
+      pointToLayer: (feature, latlng) => {
+        const v = feature.properties.metrics[currentMetric][year];
+        return L.circleMarker(latlng, {
+          radius: 6,
+          color: '#333',
+          weight: 1,
+          fillColor: getColorForValue(v),
+          fillOpacity: 0.9
+        });
+      },
+      onEachFeature: (feature, layer) => {
+        const m = feature.properties.metrics;
+        const vMain = m[currentMetric][year];
+
+        const hd32 = m.hot_days_32?.[year];
+        const hd35 = m.hot_days_35?.[year];
+        const wn24 = m.warm_nights_24?.[year];
+        const opp  = m.oppressive_days?.[year];
+
+        const hm_idx  = m.hottest_month_index?.[year];
+        const hm_tmax = m.hottest_month_tmax?.[year];
+        const hm_tmin = m.hottest_month_tmin?.[year];
+
+        const mainLabel = METRIC_LABELS[currentMetric] || 'Value';
+
+        let popup = `
+          <strong>${feature.properties.name}</strong><br/>
+          ${feature.properties.country}<br/>
+          Year: ${year}<br/>
+          ${mainLabel}: <strong>${vMain} days</strong>
+        `;
+
+        // Add extra context metrics (if available)
+        popup += '<hr style="margin:4px 0;">';
+        if (hd32 != null) popup += `Hot days ≥32°C: ${hd32}<br/>`;
+        if (hd35 != null) popup += `Very hot days ≥35°C: ${hd35}<br/>`;
+        if (wn24 != null) popup += `Warm nights ≥24°C: ${wn24}<br/>`;
+        if (opp  != null) popup += `Oppressive days: ${opp}<br/>`;
+
+        if (hm_idx != null && hm_tmax != null && hm_tmin != null) {
+          popup += `
+            <br/><em>Hottest month:</em> ${monthNameFromIndex(hm_idx)}<br/>
+            Avg max: ${hm_tmax.toFixed(1)} °C<br/>
+            Avg min: ${hm_tmin.toFixed(1)} °C
+          `;
+        }
+
+        layer.bindPopup(popup);
       }
     }).addTo(map);
 
-    // Add to layer control & zoom to it
-    layerControl.addOverlay(prBoundary, 'Puerto Rico boundary');
-    map.fitBounds(prBoundary.getBounds(), { padding: [12, 12] });
-  })
-  .catch(err => console.error('Failed to load PR boundary:', err));
-
-// --- Station data (placeholder wiring) ---
-let stationsData = null;
-let stationLayer = null;           // current markers layer
-let stationsOverlayAdded = false;  // so we only add overlay once
-
-function getColorForValue(v) {
-  if (v == null) return '#999999';   // no data
-  if (v < 30)   return '#4575b4';    // < 30 days
-  if (v < 60)   return '#91bfdb';    // 30–59
-  if (v < 90)   return '#fee090';    // 60–89
-  if (v < 120)  return '#fdae61';    // 90–119
-  return '#d73027';                  // ≥ 120
-}
-
-function drawStationsForYear(year) {
-  if (!stationsData) {
-    console.warn('No stationsData loaded yet');
-    return;
-  }
-
-  // Remove previous layer if it exists
-  if (stationLayer) {
-    map.removeLayer(stationLayer);
-  }
-
-  stationLayer = L.geoJSON(stationsData, {
-    // Only draw features that have a real value for this year
-    filter: (feature) => {
-      const v = feature.properties.values[year];
-      return v != null && !Number.isNaN(v);
-    },
-    pointToLayer: (feature, latlng) => {
-      const val = feature.properties.values[year];
-      return L.circleMarker(latlng, {
-        radius: 6,
-        color: '#333',
-        weight: 1,
-        fillColor: getColorForValue(val),
-        fillOpacity: 0.9
-      });
-    },
-    onEachFeature: (feature, layer) => {
-      const val = feature.properties.values[year];
-      const display = `${val} days`;
-      layer.bindPopup(`
-        <strong>${feature.properties.name}</strong><br/>
-        ${feature.properties.country}<br/>
-        Year: ${year}<br/>
-        Very hot days (Tmax ≥ 32 °C): <strong>${display}</strong>
-      `);
+    if (!stationsOverlayAdded) {
+      layerControl.addOverlay(stationLayer, 'Temperature metrics (days per year)');
+      stationsOverlayAdded = true;
     }
-  }).addTo(map);
-
-  // Add to layer control only once
-  if (!stationsOverlayAdded) {
-    layerControl.addOverlay(stationLayer, 'Very hot days (Tmax ≥ 32 °C)');
-    stationsOverlayAdded = true;
-  }
-}
-
-
-
-
-fetch('data/stations_all_hotdays.geojson')
-  .then(r => r.json())
-  .then(geo => {
-    stationsData = geo;
-    console.log('Loaded stations data:', stationsData);
-
-    const firstFeature = stationsData.features[0];
-    YEARS = Object.keys(firstFeature.properties.values).sort();
-    initTimeSlider(YEARS);
-    drawStationsForYear(YEARS[0]);
-  })
-  .catch(err => console.error('Failed to load stations data:', err));
-
-
-
-
-    // --- Time slider placeholder (disabled until data exists) ---
-const SliderControl = L.Control.extend({
-  options: { position: 'topright' },
-  onAdd: function () {
-    const wrap = L.DomUtil.create('div', 'slider-wrap');
-    wrap.innerHTML = `
-      <span class="label">Time</span>
-      <input id="timeRange" type="range" min="0" max="11" value="0" disabled />
-      <span class="value" id="timeLabel">Not available</span>
-    `;
-    // prevent map drag/zoom while interacting with control
-    L.DomEvent.disableClickPropagation(wrap);
-    L.DomEvent.disableScrollPropagation(wrap);
-    return wrap;
-  }
-});
-map.addControl(new SliderControl());
-
-// --- Time slider wiring (dummy years for now) ---
-
-
-let YEARS = [];   // will be filled once data loads
-
-
-
-function initTimeSlider(years) {
-  const range = document.getElementById('timeRange');
-  const label = document.getElementById('timeLabel');
-
-  if (!range || !label) {
-    console.warn('Time slider elements not found in DOM');
-    return;
   }
 
-  // Configure the slider based on how many years we have
-  range.disabled = false;                    // enable it
-  range.min = 0;
-  range.max = years.length - 1;
-  range.value = 0;
+  // --- Time slider control ---
+  const SliderControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      const wrap = L.DomUtil.create('div', 'slider-wrap');
+      wrap.innerHTML = `
+        <span class="label">Time</span>
+        <input id="timeRange" type="range" min="0" max="0" value="0" disabled />
+        <span class="value" id="timeLabel">Not available</span>
+      `;
+      L.DomEvent.disableClickPropagation(wrap);
+      L.DomEvent.disableScrollPropagation(wrap);
+      return wrap;
+    }
+  });
+  map.addControl(new SliderControl());
 
-  // Set initial label
-  label.textContent = years[0];
+  function initTimeSlider(years) {
+    const range = document.getElementById('timeRange');
+    const label = document.getElementById('timeLabel');
 
-  range.addEventListener('input', () => {
-  const idx = Number(range.value);
-  const year = years[idx];
-  label.textContent = year;
+    if (!range || !label) {
+      console.warn('Time slider elements not found in DOM');
+      return;
+    }
 
-  console.log('Selected year:', year);
-  drawStationsForYear(year);
-});
-}
+    range.disabled = false;
+    range.min = 0;
+    range.max = years.length - 1;
+    range.value = 0;
+
+    label.textContent = years[0];
+
+    range.addEventListener('input', () => {
+      const idx = Number(range.value);
+      const year = years[idx];
+      label.textContent = year;
+      console.log('Selected year:', year);
+      drawStationsForYear(year);
+    });
+  }
+
+  // --- Metric selector control ---
+  const MetricControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      const wrap = L.DomUtil.create('div', 'metric-wrap');
+      wrap.innerHTML = `
+        <span class="label">Metric</span>
+        <select id="metricSelect">
+          <option value="hot_days_32">Hot days (Tmax ≥ 32 °C)</option>
+          <option value="hot_days_35">Very hot days (Tmax ≥ 35 °C)</option>
+          <option value="warm_nights_24">Warm nights (Tmin ≥ 24 °C)</option>
+          <option value="oppressive_days">Oppressive days (Tmax ≥ 32 °C & Tmin ≥ 24 °C)</option>
+        </select>
+      `;
+      L.DomEvent.disableClickPropagation(wwrap);
+      L.DomEvent.disableScrollPropagation(wwrap);
+      return wrap;
+    }
+  });
+
+  // small typo fix: refer to correct variable name
+  const MetricControlFixed = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      const wrap = L.DomUtil.create('div', 'metric-wrap');
+      wrap.innerHTML = `
+        <span class="label">Metric</span>
+        <select id="metricSelect">
+          <option value="hot_days_32">Hot days (Tmax ≥ 32 °C)</option>
+          <option value="hot_days_35">Very hot days (Tmax ≥ 35 °C)</option>
+          <option value="warm_nights_24">Warm nights (Tmin ≥ 24 °C)</option>
+          <option value="oppressive_days">Oppressive days (Tmax ≥ 32 °C & Tmin ≥ 24 °C)</option>
+        </select>
+      `;
+      L.DomEvent.disableClickPropagation(wrap);
+      L.DomEvent.disableScrollPropagation(wrap);
+      return wrap;
+    }
+  });
+  map.addControl(new MetricControlFixed());
+
+  function initMetricSelector() {
+    const select = document.getElementById('metricSelect');
+    if (!select) return;
+
+    select.value = currentMetric;
+
+    select.addEventListener('change', () => {
+      currentMetric = select.value;
+      updateLegendTitle();
+
+      const range = document.getElementById('timeRange');
+      let idx = 0;
+      if (range && YEARS.length > 0) {
+        idx = Number(range.value) || 0;
+      }
+      const year = YEARS[idx];
+      if (year) {
+        drawStationsForYear(year);
+      }
+    });
+  }
+
+  // Wait a tick so Leaflet has added the control DOM
+  setTimeout(initMetricSelector, 0);
+
+  // --- Load stations with all metrics ---
+  fetch('data/stations_heatmetrics.geojson')
+    .then(r => r.json())
+    .then(geo => {
+      stationsData = geo;
+      console.log('Loaded stations metrics:', stationsData);
+
+      if (!stationsData.features.length) {
+        console.warn('No features in stations_heatmetrics.geojson');
+        return;
+      }
+
+      const firstMetrics = stationsData.features[0].properties.metrics;
+      const ref = firstMetrics.hot_days_32 || firstMetrics.hot_days_35;
+      YEARS = Object.keys(ref).sort();
+
+      initTimeSlider(YEARS);
+      drawStationsForYear(YEARS[0]);
+    })
+    .catch(err => console.error('Failed to load stations metrics:', err));
 
   </script>
 </body>
 </html>
-
