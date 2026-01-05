@@ -50,6 +50,21 @@
     .info-card {
       max-width:260px;
     }
+
+    .sparkline {
+      margin-top:8px;
+    }
+
+    .sparkline .sparkline-wrap {
+      width:240px;
+      max-width:100%;
+    }
+
+    .sparkline canvas {
+      display:block;
+      width:100%;
+      height:140px;
+    }
   </style>
 </head>
 <body>
@@ -57,6 +72,7 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <script>
 // ---------------------------------------------------------
@@ -298,6 +314,7 @@ function stationOnEachFeature(feature, layer) {
   const hm_tmin = m.hottest_month_tmin?.[currentYear];
 
   const mainLabel = metricLabel(currentMetric);
+  const chartId = `chart-${(feature.properties.id || feature.properties.name || 'st').toString().replace(/[^a-z0-9]+/gi,'-')}-${Math.random().toString(36).slice(2,7)}`;
 
   let popup = `
     <strong>${feature.properties.name}</strong><br/>
@@ -320,7 +337,18 @@ function stationOnEachFeature(feature, layer) {
     `;
   }
 
+  popup += `
+    <div class="sparkline">
+      <div style="font-size:11px;color:#555;margin-bottom:4px;">Trend across years</div>
+      <div class="sparkline-wrap">
+        <canvas id="${chartId}"></canvas>
+      </div>
+      <div id="${chartId}-fallback" style="display:none;font-size:11px;color:#777;">No data to plot.</div>
+    </div>
+  `;
+
   layer.bindPopup(popup);
+  layer.on('popupopen', () => renderStationChart(feature, chartId));
 }
 
 // Clear & refill the existing stationLayer while keeping the overlay toggle state
@@ -449,6 +477,71 @@ setTimeout(() => {
   initMetricSelector();
   initUnitSelector();
 }, 0);
+
+// Build a small per-station time series for the active metric
+function renderStationChart(feature, canvasId) {
+  const canvas = document.getElementById(canvasId);
+  const fallback = document.getElementById(`${canvasId}-fallback`);
+  if (!canvas) return;
+
+  const metricsForStation = feature.properties.metrics?.[currentMetric] || {};
+  const labels = [];
+  const data = [];
+  for (const y of YEARS) {
+    const v = metricsForStation[y];
+    if (v != null && !Number.isNaN(v)) {
+      labels.push(y);
+      data.push(v);
+    }
+  }
+
+  if (!labels.length) {
+    if (fallback) fallback.style.display = 'block';
+    return;
+  }
+
+  if (canvas.chartInstance) {
+    canvas.chartInstance.destroy();
+  }
+
+  const ctx = canvas.getContext('2d');
+  canvas.chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: metricLabel(currentMetric),
+        data,
+        borderColor: '#d73027',
+        backgroundColor: 'rgba(215,48,39,0.15)',
+        borderWidth: 2,
+        tension: 0.25,
+        pointRadius: 0,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.parsed.y} days (${ctx.label})`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 6 }
+        },
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
 
 // --- Load stations with all metrics ---
 fetch('data/stations_heatmetrics_all.geojson')

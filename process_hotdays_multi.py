@@ -49,7 +49,7 @@ def main(input_csv, output_geojson):
 
         g = g.copy()
 
-        # Your CSV uses Fahrenheit, so convert to Celsius
+        # CSV uses Fahrenheit, so convert to Celsius
         g["TMAX_C"] = (g["TMAX"] - 32.0) * 5.0 / 9.0
 
         values = {}

@@ -3,8 +3,6 @@ import sys
 import json
 import pandas as pd
 
-# ---------- CONFIG (you can tweak these later) ----------
-
 # Thresholds (°C)
 HOT_DAY_32 = 32.0          # “hot day”
 HOT_DAY_35 = 35.0          # “very hot day”
@@ -20,7 +18,7 @@ BAD_STATIONS = {
     "MAYAGUEZ ARRIBA, PR RQ",
 }
 
-# Nicer labels for some stations (optional)
+# Nicer labels for some stations
 FRIENDLY_NAMES = {
     "SAN JUAN L M MARIN INTERNATIONAL AIRPORT, PR US": "San Juan (Airport)",
     "PONCE 4 E, PR US": "Ponce",
