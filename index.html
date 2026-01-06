@@ -134,24 +134,24 @@ function formatTemp(valC) {
 }
 
 // Text labels depending on metric + unit
-function metricLabel(metricKey) {
-  if (tempUnit === 'C') {
-    switch (metricKey) {
-      case 'hot_days_32':     return 'Hot days (Tmax ≥ 32 °C)';
-      case 'hot_days_35':     return 'Very hot days (Tmax ≥ 35 °C)';
-      case 'warm_nights_24':  return 'Warm nights (Tmin ≥ 24 °C)';
-      case 'oppressive_days': return 'Oppressive days (Tmax ≥ 32 °C & Tmin ≥ 24 °C)';
-      default:                return 'Days per year';
-    }
-  } else { // Fahrenheit
-    switch (metricKey) {
-      case 'hot_days_32':     return 'Hot days (Tmax ≥ 90 °F)';
-      case 'hot_days_35':     return 'Very hot days (Tmax ≥ 95 °F)';
-      case 'warm_nights_24':  return 'Warm nights (Tmin ≥ 75 °F)';
-      case 'oppressive_days': return 'Oppressive days (Tmax ≥ 90 °F & Tmin ≥ 75 °F)';
-      default:                return 'Days per year';
-    }
+const METRIC_LABELS = {
+  C: {
+    hot_days_32: 'Hot days (Tmax ≥ 32 °C)',
+    hot_days_35: 'Very hot days (Tmax ≥ 35 °C)',
+    warm_nights_24: 'Warm nights (Tmin ≥ 24 °C)',
+    oppressive_days: 'Oppressive days (Tmax ≥ 32 °C & Tmin ≥ 24 °C)'
+  },
+  F: {
+    hot_days_32: 'Hot days (Tmax ≥ 90 °F)',
+    hot_days_35: 'Very hot days (Tmax ≥ 95 °F)',
+    warm_nights_24: 'Warm nights (Tmin ≥ 75 °F)',
+    oppressive_days: 'Oppressive days (Tmax ≥ 90 °F & Tmin ≥ 75 °F)'
   }
+};
+
+function metricLabel(metricKey) {
+  const labels = METRIC_LABELS[tempUnit] || {};
+  return labels[metricKey] || 'Days per year';
 }
 
 function legendTitleForMetric(metricKey) {
@@ -468,7 +468,7 @@ function initUnitSelector() {
     updateLegendTitle();
     updateMetricSelectLabels();
     updateInfoCard();
-    // Popups will show new units on next open
+  
   });
 }
 
@@ -478,7 +478,7 @@ setTimeout(() => {
   initUnitSelector();
 }, 0);
 
-// Build a small per-station time series for the active metric
+// Build a small per-station time series trend line for the active metric
 function renderStationChart(feature, canvasId) {
   const canvas = document.getElementById(canvasId);
   const fallback = document.getElementById(`${canvasId}-fallback`);
