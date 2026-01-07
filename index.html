@@ -149,6 +149,11 @@ const METRIC_LABELS = {
   }
 };
 
+const TEMP_THRESHOLDS = {
+  C: { hot: 32, veryHot: 35, warmNight: 24 },
+  F: { hot: 90, veryHot: 95, warmNight: 75 }
+};
+
 function metricLabel(metricKey) {
   const labels = METRIC_LABELS[tempUnit] || {};
   return labels[metricKey] || 'Days per year';
@@ -159,25 +164,16 @@ function legendTitleForMetric(metricKey) {
 }
 
 function infoCardHTML() {
-  if (tempUnit === 'C') {
-    return `
-      <strong>Caribbean Heat Stress Atlas — Puerto Rico</strong><br/>
-      Daily max/min temperatures aggregated by year (1960–2025).<br/><br/>
-      • Hot days: Tmax ≥ 32 °C, very hot ≥ 35 °C.<br/>
-      • Warm nights: Tmin ≥ 24 °C.<br/>
-      • Oppressive days: Tmax ≥ 32 °C & Tmin ≥ 24 °C.<br/>
-      Counts are per year at each station.
-    `;
-  } else {
-    return `
-      <strong>Caribbean Heat Stress Atlas — Puerto Rico</strong><br/>
-      Daily max/min temperatures aggregated by year (1960–2025).<br/><br/>
-      • Hot days: Tmax ≥ 90 °F, very hot ≥ 95 °F.<br/>
-      • Warm nights: Tmin ≥ 75 °F.<br/>
-      • Oppressive days: Tmax ≥ 90 °F & Tmin ≥ 75 °F.<br/>
-      Counts are per year at each station.
-    `;
-  }
+  const thresholds = TEMP_THRESHOLDS[tempUnit] || TEMP_THRESHOLDS.F;
+  const unitLabel = tempUnit === 'C' ? '°C' : '°F';
+  return `
+    <strong>Caribbean Heat Stress Atlas — Puerto Rico</strong><br/>
+    Daily max/min temperatures aggregated by year (1960–2025).<br/><br/>
+    • Hot days: Tmax ≥ ${thresholds.hot} ${unitLabel}, very hot ≥ ${thresholds.veryHot} ${unitLabel}.<br/>
+    • Warm nights: Tmin ≥ ${thresholds.warmNight} ${unitLabel}.<br/>
+    • Oppressive days: Tmax ≥ ${thresholds.hot} ${unitLabel} & Tmin ≥ ${thresholds.warmNight} ${unitLabel}.<br/>
+    Counts are per year at each station.
+  `;
 }
 
 function updateMetricSelectLabels() {
