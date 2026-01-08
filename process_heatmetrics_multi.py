@@ -120,6 +120,28 @@ def main(input_csv: str, output_geojson: str) -> None:
         if not metrics["hot_days_32"]:
             continue
 
+        # --- Early vs late change metrics (late minus early) ---
+        early_start, early_end = 1961, 1980
+        late_start, late_end = 2006, 2025
+
+        def mean_for_range(values_dict, start, end):
+            vals = []
+            for y, v in values_dict.items():
+                y_int = int(y)
+                if start <= y_int <= end and v is not None:
+                    vals.append(v)
+            return sum(vals) / len(vals) if vals else None
+
+        hot32_early = mean_for_range(metrics["hot_days_32"], early_start, early_end)
+        hot32_late = mean_for_range(metrics["hot_days_32"], late_start, late_end)
+        warm24_early = mean_for_range(metrics["warm_nights_24"], early_start, early_end)
+        warm24_late = mean_for_range(metrics["warm_nights_24"], late_start, late_end)
+
+        if hot32_early is not None and hot32_late is not None:
+            metrics["delta_hot_days_32"] = {"late_minus_early": hot32_late - hot32_early}
+        if warm24_early is not None and warm24_late is not None:
+            metrics["delta_warm_nights_24"] = {"late_minus_early": warm24_late - warm24_early}
+
         features.append(
             {
                 "type": "Feature",

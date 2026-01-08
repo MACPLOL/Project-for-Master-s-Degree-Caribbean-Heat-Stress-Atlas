@@ -41,6 +41,8 @@
 
     .slider-wrap input[type="range"] { width:100%; }
     .slider-wrap .value { font-variant-numeric: tabular-nums; }
+    .slider-wrap.is-static input[type="range"] { display: none; }
+    .slider-wrap.is-static .value { font-weight: 600; }
 
     .metric-wrap select {
       width:100%;
@@ -114,6 +116,11 @@ let currentMetric = 'hot_days_32';  // default metric
 let tempUnit = 'F';                 // 'F' or 'C' for display
 
 const MONTH_NAMES = [null, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DELTA_YEAR_KEY = 'late_minus_early';
+const DELTA_PERIODS = {
+  early: { start: 1961, end: 1980 },
+  late: { start: 2006, end: 2025 }
+};
 
 function monthNameFromIndex(idx) {
   return MONTH_NAMES[idx] || `Month ${idx}`;
@@ -133,19 +140,59 @@ function formatTemp(valC) {
   }
 }
 
+function averageForPeriod(metricByYear, startYear, endYear) {
+  if (!metricByYear) return null;
+  let sum = 0;
+  let count = 0;
+  for (const [yearStr, val] of Object.entries(metricByYear)) {
+    const year = Number(yearStr);
+    if (!Number.isFinite(year)) continue;
+    if (year < startYear || year > endYear) continue;
+    if (val == null || Number.isNaN(val)) continue;
+    sum += val;
+    count += 1;
+  }
+  if (!count) return null;
+  return sum / count;
+}
+
+function computeDeltaMetric(metrics, baseKey) {
+  const byYear = metrics?.[baseKey];
+  if (!byYear) return null;
+  const earlyAvg = averageForPeriod(byYear, DELTA_PERIODS.early.start, DELTA_PERIODS.early.end);
+  const lateAvg = averageForPeriod(byYear, DELTA_PERIODS.late.start, DELTA_PERIODS.late.end);
+  if (earlyAvg == null || lateAvg == null) return null;
+  return Number((lateAvg - earlyAvg).toFixed(1));
+}
+
+function getDeltaMetricValue(metrics, metricKey) {
+  if (!metrics) return null;
+  const cached = metrics[metricKey]?.[DELTA_YEAR_KEY];
+  if (cached != null && !Number.isNaN(cached)) return cached;
+  const baseKey = metricKey.replace(/^delta_/, '');
+  const delta = computeDeltaMetric(metrics, baseKey);
+  if (delta == null) return null;
+  metrics[metricKey] = { [DELTA_YEAR_KEY]: delta };
+  return delta;
+}
+
 // Text labels depending on metric + unit
 const METRIC_LABELS = {
   C: {
     hot_days_32: 'Hot days (Tmax ≥ 32 °C)',
     hot_days_35: 'Very hot days (Tmax ≥ 35 °C)',
     warm_nights_24: 'Warm nights (Tmin ≥ 24 °C)',
-    oppressive_days: 'Oppressive days (Tmax ≥ 32 °C & Tmin ≥ 24 °C)'
+    oppressive_days: 'Oppressive days (Tmax ≥ 32 °C & Tmin ≥ 24 °C)',
+    delta_hot_days_32: 'Change in hot days (late − early)',
+    delta_warm_nights_24: 'Change in warm nights (late − early)'
   },
   F: {
     hot_days_32: 'Hot days (Tmax ≥ 90 °F)',
     hot_days_35: 'Very hot days (Tmax ≥ 95 °F)',
     warm_nights_24: 'Warm nights (Tmin ≥ 75 °F)',
-    oppressive_days: 'Oppressive days (Tmax ≥ 90 °F & Tmin ≥ 75 °F)'
+    oppressive_days: 'Oppressive days (Tmax ≥ 90 °F & Tmin ≥ 75 °F)',
+    delta_hot_days_32: 'Change in hot days (late − early)',
+    delta_warm_nights_24: 'Change in warm nights (late − early)'
   }
 };
 
@@ -160,6 +207,9 @@ function metricLabel(metricKey) {
 }
 
 function legendTitleForMetric(metricKey) {
+  if (metricKey.startsWith('delta_')) {
+    return metricLabel(metricKey) + '<br/><small>(days per year)</small>';
+  }
   return metricLabel(metricKey) + '<br/><small>(days per year)</small>';
 }
 
@@ -172,6 +222,7 @@ function infoCardHTML() {
     • Hot days: Tmax ≥ ${thresholds.hot} ${unitLabel}, very hot ≥ ${thresholds.veryHot} ${unitLabel}.<br/>
     • Warm nights: Tmin ≥ ${thresholds.warmNight} ${unitLabel}.<br/>
     • Oppressive days: Tmax ≥ ${thresholds.hot} ${unitLabel} & Tmin ≥ ${thresholds.warmNight} ${unitLabel}.<br/>
+    • Change metrics compare 2006–2025 vs 1961–1980.<br/>
     Counts are per year at each station.
   `;
 }
@@ -185,11 +236,50 @@ function updateMetricSelectLabels() {
 }
 
 // --- Legend ---
-const legend = L.control({ position: 'bottomright' });
-legend.onAdd = function () {
-  const div = L.DomUtil.create('div', 'legend');
-  div.innerHTML = `
-    <h4>${legendTitleForMetric(currentMetric)}</h4>
+function legendHTML(metricKey) {
+  if (metricKey.startsWith('delta_')) {
+    return `
+      <h4>${legendTitleForMetric(metricKey)}</h4>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#2166ac;border:1px solid #ccc;margin-right:6px;"></span>
+        ≤ −40 days
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#67a9cf;border:1px solid #ccc;margin-right:6px;"></span>
+        −39 to −20
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#d1e5f0;border:1px solid #ccc;margin-right:6px;"></span>
+        −19 to −1
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#fddbc7;border:1px solid #ccc;margin-right:6px;"></span>
+        0 to 19
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#ef8a62;border:1px solid #ccc;margin-right:6px;"></span>
+        20 to 39
+      </div>
+      <div><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#b2182b;border:1px solid #ccc;margin-right:6px;"></span>
+        ≥ 40 days
+      </div>
+      <div style="margin-top:4px;"><span style="
+        display:inline-block;width:14px;height:14px;
+        background:#999999;border:1px solid #ccc;margin-right:6px;"></span>
+        No data
+      </div>
+    `;
+  }
+
+  return `
+    <h4>${legendTitleForMetric(metricKey)}</h4>
     <div><span style="
       display:inline-block;width:14px;height:14px;
       background:#4575b4;border:1px solid #ccc;margin-right:6px;"></span>
@@ -221,13 +311,19 @@ legend.onAdd = function () {
       No data
     </div>
   `;
+}
+
+const legend = L.control({ position: 'bottomright' });
+legend.onAdd = function () {
+  const div = L.DomUtil.create('div', 'legend');
+  div.innerHTML = legendHTML(currentMetric);
   return div;
 };
 legend.addTo(map);
 
 function updateLegendTitle() {
-  const h4 = document.querySelector('.legend h4');
-  if (h4) h4.innerHTML = legendTitleForMetric(currentMetric);
+  const div = document.querySelector('.legend');
+  if (div) div.innerHTML = legendHTML(currentMetric);
 }
 
 // --- Info card (bottom-left) ---
@@ -269,6 +365,14 @@ fetch('data/pr_boundary.geojson')
 // --- Color scale (shared by all metrics) ---
 function getColorForValue(v) {
   if (v == null || Number.isNaN(v)) return '#999999';   // no data
+  if (currentMetric.startsWith('delta_')) {
+    if (v <= -40) return '#2166ac';
+    if (v <= -20) return '#67a9cf';
+    if (v < 0) return '#d1e5f0';
+    if (v < 20) return '#fddbc7';
+    if (v < 40) return '#ef8a62';
+    return '#b2182b';
+  }
   if (v < 30)   return '#4575b4';   // < 30 days
   if (v < 60)   return '#91bfdb';   // 30–59
   if (v < 90)   return '#fee090';   // 60–89
@@ -276,17 +380,26 @@ function getColorForValue(v) {
   return '#d73027';                // ≥ 120
 }
 
+function metricValue(feature) {
+  const m = feature.properties.metrics;
+  if (!m) return null;
+  if (currentMetric.startsWith('delta_')) {
+    return getDeltaMetricValue(m, currentMetric);
+  }
+  const metricByYear = m[currentMetric];
+  if (!metricByYear) return null;
+  return metricByYear[currentYear];
+}
+
 // --- Helpers for the station layer ---
 function stationFilter(feature) {
   if (!currentYear || !currentMetric) return false;
-  const m = feature.properties.metrics;
-  if (!m || !m[currentMetric]) return false;
-  const v = m[currentMetric][currentYear];
+  const v = metricValue(feature);
   return v != null && !Number.isNaN(v);
 }
 
 function stationPointToLayer(feature, latlng) {
-  const v = feature.properties.metrics[currentMetric][currentYear];
+  const v = metricValue(feature);
   return L.circleMarker(latlng, {
     radius: 6,
     color: '#333',
@@ -298,7 +411,7 @@ function stationPointToLayer(feature, latlng) {
 
 function stationOnEachFeature(feature, layer) {
   const m = feature.properties.metrics;
-  const vMain = m[currentMetric][currentYear];
+  const vMain = metricValue(feature);
 
   const hd32 = m.hot_days_32?.[currentYear];
   const hd35 = m.hot_days_35?.[currentYear];
@@ -315,7 +428,7 @@ function stationOnEachFeature(feature, layer) {
   let popup = `
     <strong>${feature.properties.name}</strong><br/>
     ${feature.properties.country}<br/>
-    Year: ${currentYear}<br/>
+    ${currentMetric.startsWith('delta_') ? 'Period: 2006–2025 minus 1961–1980' : `Year: ${currentYear}`}<br/>
     ${mainLabel}: <strong>${vMain} days</strong>
   `;
 
@@ -333,18 +446,22 @@ function stationOnEachFeature(feature, layer) {
     `;
   }
 
-  popup += `
-    <div class="sparkline">
-      <div style="font-size:11px;color:#555;margin-bottom:4px;">Trend across years</div>
-      <div class="sparkline-wrap">
-        <canvas id="${chartId}"></canvas>
+  if (!currentMetric.startsWith('delta_')) {
+    popup += `
+      <div class="sparkline">
+        <div style="font-size:11px;color:#555;margin-bottom:4px;">Trend across years</div>
+        <div class="sparkline-wrap">
+          <canvas id="${chartId}"></canvas>
+        </div>
+        <div id="${chartId}-fallback" style="display:none;font-size:11px;color:#777;">No data to plot.</div>
       </div>
-      <div id="${chartId}-fallback" style="display:none;font-size:11px;color:#777;">No data to plot.</div>
-    </div>
-  `;
+    `;
+  }
 
   layer.bindPopup(popup);
-  layer.on('popupopen', () => renderStationChart(feature, chartId));
+  if (!currentMetric.startsWith('delta_')) {
+    layer.on('popupopen', () => renderStationChart(feature, chartId));
+  }
 }
 
 // Clear & refill the existing stationLayer while keeping the overlay toggle state
@@ -399,6 +516,25 @@ function initTimeSlider(years) {
     console.log('Selected year:', year);
     drawStationsForYear(year);
   });
+
+  updateTimeSliderAvailability();
+}
+
+function updateTimeSliderAvailability() {
+  const range = document.getElementById('timeRange');
+  const label = document.getElementById('timeLabel');
+  if (!range || !label) return;
+  const wrap = range.closest('.slider-wrap');
+  if (currentMetric.startsWith('delta_')) {
+    range.disabled = true;
+    if (wrap) wrap.classList.add('is-static');
+    label.textContent = '2006–2025 minus 1961–1980';
+  } else {
+    range.disabled = false;
+    if (wrap) wrap.classList.remove('is-static');
+    const idx = Number(range.value);
+    label.textContent = YEARS[idx] || currentYear || 'Not available';
+  }
 }
 
 // --- Metric selector control ---
@@ -413,6 +549,8 @@ const MetricControl = L.Control.extend({
         <option value="hot_days_35"></option>
         <option value="warm_nights_24"></option>
         <option value="oppressive_days"></option>
+        <option value="delta_hot_days_32"></option>
+        <option value="delta_warm_nights_24"></option>
       </select>
     `;
     L.DomEvent.disableClickPropagation(wrap);
@@ -432,6 +570,7 @@ function initMetricSelector() {
   select.addEventListener('change', () => {
     currentMetric = select.value;
     updateLegendTitle();
+    updateTimeSliderAvailability();
     redrawStations();   // same layer, new metric
   });
 }

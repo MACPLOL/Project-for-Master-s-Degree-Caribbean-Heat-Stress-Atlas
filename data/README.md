@@ -22,4 +22,4 @@ This folder holds the datasets used by the Caribbean Heat Stress Atlas project. 
   - `data/raw/san_juan_1960_2025.csv`: San Juan-only raw data extracted from the full station file.
 
 ## Regeneration
-If you need to rebuild the metrics, start from `data/all_stations_1960_2025.csv` and run the processing scripts in the repo (for example `process_heatmetrics_multi.py` for the metrics output). Always verify outputs before replacing the files used by the web map.
+If rebuilding the metrics is neede because of an error etc, start from `data/all_stations_1960_2025.csv` and run the processing scripts in the repo (for example `process_heatmetrics_multi.py` for the metrics output). Always verify outputs before replacing the files used by the web map. ORGANIZE!!! It's a lot of data!!!!
