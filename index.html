@@ -7,46 +7,107 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;600&display=swap"/>
 
   <style>
     html, body { height: 100%; margin: 0; }
     #map { height: 100vh; width: 100vw; }
+
+    :root {
+      --ui-font: "Bricolage Grotesque", "IBM Plex Sans", "Noto Sans", sans-serif;
+      --ui-title-font: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
+      --ui-bg: rgba(255, 255, 255, 0.92);
+      --ui-bg-2: rgba(255, 245, 236, 0.96);
+      --ui-border: rgba(0, 0, 0, 0.08);
+      --ui-shadow: 0 14px 35px rgba(0, 0, 0, 0.18);
+      --ui-radius: 14px;
+      --ui-accent: #e76f51;
+      --ui-accent-2: #f4a261;
+      --ui-text: #1f2937;
+      --ui-muted: #4b5563;
+    }
 
     /* Card-style controls + legend */
     .legend,
     .slider-wrap,
     .metric-wrap,
     .info-card {
-      background:#fff;
-      padding:8px 10px;
-      border:1px solid #ccc;
-      border-radius:6px;
-      box-shadow:0 1px 3px rgba(0,0,0,.15);
-      font:12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background: linear-gradient(135deg, var(--ui-bg), var(--ui-bg-2));
+      color: var(--ui-text);
+      padding:10px 12px;
+      border:1px solid var(--ui-border);
+      border-radius: var(--ui-radius);
+      box-shadow: var(--ui-shadow);
+      font: 12.5px/1.3 var(--ui-font);
       min-width:220px;
+      backdrop-filter: blur(6px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .legend::before,
+    .slider-wrap::before,
+    .metric-wrap::before,
+    .info-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--ui-accent), var(--ui-accent-2));
     }
 
     .legend {
       min-width: 180px;
     }
 
-    .legend h4 { margin: 0 0 6px; font-size: 12px; }
+    .legend h4 {
+      margin: 2px 0 8px;
+      font-size: 13px;
+      font-family: var(--ui-title-font);
+      letter-spacing: 0.01em;
+    }
+
+    .legend div {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
     .slider-wrap .label,
     .metric-wrap .label {
       display:block;
       margin-bottom:6px;
       font-weight:600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 10px;
+      color: var(--ui-muted);
     }
 
-    .slider-wrap input[type="range"] { width:100%; }
-    .slider-wrap .value { font-variant-numeric: tabular-nums; }
+    .slider-wrap input[type="range"] {
+      width:100%;
+      accent-color: var(--ui-accent);
+    }
+    .slider-wrap .value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
     .slider-wrap.is-static input[type="range"] { display: none; }
     .slider-wrap.is-static .value { font-weight: 600; }
 
     .metric-wrap select {
       width:100%;
-      font-size:12px;
+      font-size:12.5px;
+      font-family: var(--ui-font);
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--ui-border);
+      background: #fff;
+      color: var(--ui-text);
     }
 
     .info-card {
@@ -218,6 +279,7 @@ function infoCardHTML() {
   const unitLabel = tempUnit === 'C' ? '°C' : '°F';
   return `
     <strong>Caribbean Heat Stress Atlas — Puerto Rico</strong><br/>
+    <span style="font-size:11px;color:var(--ui-muted);">Made by Mauro A. Collazo Pabón 2025-2026</span><br/>
     Daily max/min temperatures aggregated by year (1960–2025).<br/><br/>
     • Hot days: Tmax ≥ ${thresholds.hot} ${unitLabel}, very hot ≥ ${thresholds.veryHot} ${unitLabel}.<br/>
     • Warm nights: Tmin ≥ ${thresholds.warmNight} ${unitLabel}.<br/>
