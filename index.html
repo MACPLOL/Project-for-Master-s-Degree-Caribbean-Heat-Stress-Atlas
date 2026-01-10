@@ -110,6 +110,23 @@
       color: var(--ui-text);
     }
 
+    .reset-wrap button {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--ui-border);
+      background: #fff;
+      color: var(--ui-text);
+      font: 600 12px/1 var(--ui-font);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .reset-wrap button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+    }
+
     .info-card {
       max-width:260px;
     }
@@ -669,10 +686,32 @@ function initUnitSelector() {
   });
 }
 
+// --- Reset view button control ---
+const ResetControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: function () {
+    const wrap = L.DomUtil.create('div', 'metric-wrap reset-wrap');
+    wrap.innerHTML = `<button type="button" id="resetViewBtn">Reset view</button>`;
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.disableScrollPropagation(wrap);
+    return wrap;
+  }
+});
+map.addControl(new ResetControl());
+
+function initResetButton() {
+  const btn = document.getElementById('resetViewBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    map.setView(prCenter, 8);
+  });
+}
+
 // Wait a tick so Leaflet has added the control DOM
 setTimeout(() => {
   initMetricSelector();
   initUnitSelector();
+  initResetButton();
 }, 0);
 
 // Build a small per-station time series trend line for the active metric
