@@ -26,6 +26,21 @@ The map reads GeoJSON files in `data/`, such as:
 - `data/stations_multi_hotdays_filtered.geojson`
 - `data/pr_boundary.geojson`
 
+## Data dictionary / Methodology (simple language)
+- Station: a weather location with a name and coordinates.
+- Raw record: a daily temperature reading from the station.
+- Hot day: a day that is much hotter than normal for that place (the project uses a threshold in the processing scripts).
+- Warm night: a night that stays hot and does not cool down much.
+- Heat metrics: summary numbers like how many hot days happened, or how strong the heat was.
+- GeoJSON: a map-friendly file that stores points and their numbers.
+
+Methodology (simple steps):
+1. Clean the raw station data.
+2. Compute daily values (highs and lows).
+3. Flag hot days and warm nights.
+4. Count them per station and time period.
+5. Save results as GeoJSON for the map.
+
 ## Validation / QA
 - Spot-check a few stations: pick 2-3 and compare map values with the raw CSV for the same dates.
 - Plot one station time series with `plot_station_timeseries.py` to make sure hot periods look plausible.
