@@ -26,6 +26,12 @@ The map reads GeoJSON files in `data/`, such as:
 - `data/stations_multi_hotdays_filtered.geojson`
 - `data/pr_boundary.geojson`
 
+## Validation / QA
+- Spot-check a few stations: pick 2-3 and compare map values with the raw CSV for the same dates.
+- Plot one station time series with `plot_station_timeseries.py` to make sure hot periods look plausible.
+- Open the map and confirm hot-day counts are not all zero or all the same.
+- Check that GeoJSON files load without errors in the browser console.
+
 ## Notes
 - The raw data can be large, so, for future uses, I should keep derived files small and focused for the map. Divide and conquer!
 - Adding more data into the map can be messy, so a duplicate file should be made to better see the results before adding them to the final version.
