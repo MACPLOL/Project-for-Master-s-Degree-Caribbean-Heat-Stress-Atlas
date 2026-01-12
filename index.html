@@ -96,6 +96,12 @@
       font-variant-numeric: tabular-nums;
       font-weight: 600;
     }
+    .slider-wrap .coverage {
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--ui-muted);
+    }
     .slider-wrap.is-static input[type="range"] { display: none; }
     .slider-wrap.is-static .value { font-weight: 600; }
 
@@ -548,6 +554,7 @@ function redrawStations() {
   if (!stationsData || !stationLayer) return;
   stationLayer.clearLayers();
   stationLayer.addData(stationsData);
+  updateCoverageLabel();
 }
 
 function drawStationsForYear(year) {
@@ -564,6 +571,7 @@ const SliderControl = L.Control.extend({
       <span class="label">Time</span>
       <input id="timeRange" type="range" min="0" max="0" value="0" disabled />
       <span class="value" id="timeLabel">Not available</span>
+      <span class="coverage" id="coverageLabel">Coverage: not available</span>
     `;
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.disableScrollPropagation(wrap);
@@ -597,6 +605,7 @@ function initTimeSlider(years) {
   });
 
   updateTimeSliderAvailability();
+  updateCoverageLabel();
 }
 
 function updateTimeSliderAvailability() {
@@ -614,6 +623,38 @@ function updateTimeSliderAvailability() {
     const idx = Number(range.value);
     label.textContent = YEARS[idx] || currentYear || 'Not available';
   }
+}
+
+
+function computeCoverage() {
+  if (!stationsData || !stationsData.features || !stationsData.features.length) {
+    return { withData: 0, total: 0 };
+  }
+  let withData = 0;
+  let total = 0;
+  for (const feature of stationsData.features) {
+    total += 1;
+    const v = metricValue(feature);
+    if (v != null && !Number.isNaN(v)) {
+      withData += 1;
+    }
+  }
+  return { withData, total };
+}
+
+function updateCoverageLabel() {
+  const label = document.getElementById('coverageLabel');
+  if (!label) return;
+  if (!stationsData || !stationsData.features || !stationsData.features.length) {
+    label.textContent = 'Coverage: not available';
+    return;
+  }
+  const { withData, total } = computeCoverage();
+  const pct = total ? Math.round((withData / total) * 100) : 0;
+  const scope = currentMetric.startsWith('delta_')
+    ? '2006-2025 minus 1961-1980'
+    : `Year ${currentYear ?? 'n/a'}`;
+  label.textContent = `Coverage (${scope}): ${withData}/${total} stations (${pct}%)`;
 }
 
 // --- Metric selector control ---
