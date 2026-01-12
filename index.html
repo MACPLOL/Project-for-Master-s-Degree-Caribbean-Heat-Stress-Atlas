@@ -161,6 +161,16 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <script>
+// ===============================================
+// SECTION MAP
+// 1) Map setup + base layers
+// 2) Global state + helpers
+// 3) Labels + legend + info card
+// 4) Data layers + styling
+// 5) Controls (slider, metric, units, reset)
+// 6) Charts (popup sparkline)
+// 7) Data loading + initialization
+// ===============================================
 // ---------------------------------------------------------
 // Caribbean Heat Stress Atlas — Temperature-only metrics
 //
@@ -175,7 +185,7 @@
 //   hottest_month_tmin[year]  : mean Tmin in that month (°C)
 // ---------------------------------------------------------
 
-// --- Map setup ---
+// --- [1] Map setup + base layers ---
 const prCenter = [18.2208, -66.5901];
 const map = L.map('map', { center: prCenter, zoom: 8 });
 
@@ -190,7 +200,7 @@ const baseLayers = { "OpenStreetMap": osm };
 const overlays = {};
 const layerControl = L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
 
-// --- Globals for station data & time/metric state ---
+// --- [2] Global state + helpers (time, metric, units) ---
 let stationsData = null;
 let stationLayer = null;
 
@@ -210,7 +220,7 @@ function monthNameFromIndex(idx) {
   return MONTH_NAMES[idx] || `Month ${idx}`;
 }
 
-// --- Temperature helpers (display only, data stays in °C) ---
+// --- [2] Temperature helpers (display only, data stays in °C) ---
 function cToF(c) {
   return c * 9/5 + 32;
 }
@@ -260,7 +270,7 @@ function getDeltaMetricValue(metrics, metricKey) {
   return delta;
 }
 
-// Text labels depending on metric + unit
+// --- [3] Labels for metrics and legend ---
 const METRIC_LABELS = {
   C: {
     hot_days_32: 'Hot days (Tmax ≥ 32 °C)',
@@ -320,7 +330,7 @@ function updateMetricSelectLabels() {
   }
 }
 
-// --- Legend ---
+// --- [3] Legend ---
 function legendHTML(metricKey) {
   if (metricKey.startsWith('delta_')) {
     return `
@@ -411,7 +421,7 @@ function updateLegendTitle() {
   if (div) div.innerHTML = legendHTML(currentMetric);
 }
 
-// --- Info card (bottom-left) ---
+// --- [3] Info card (bottom-left) ---
 const InfoCardControl = L.Control.extend({
   options: { position: 'bottomleft' },
   onAdd: function () {
@@ -430,7 +440,7 @@ function updateInfoCard() {
   if (div) div.innerHTML = infoCardHTML();
 }
 
-// --- Puerto Rico boundary ---
+// --- [4] Data layers: Puerto Rico boundary ---
 fetch('data/pr_boundary.geojson')
   .then(r => r.json())
   .then(geo => {
@@ -447,7 +457,7 @@ fetch('data/pr_boundary.geojson')
   })
   .catch(err => console.error('Failed to load PR boundary:', err));
 
-// --- Color scale (shared by all metrics) ---
+// --- [4] Data styling: color scale + metric value ---
 function getColorForValue(v) {
   if (v == null || Number.isNaN(v)) return '#999999';   // no data
   if (currentMetric.startsWith('delta_')) {
@@ -476,7 +486,7 @@ function metricValue(feature) {
   return metricByYear[currentYear];
 }
 
-// --- Helpers for the station layer ---
+// --- [4] Station layer (filter, symbols, popups) ---
 function stationFilter(feature) {
   if (!currentYear || !currentMetric) return false;
   const v = metricValue(feature);
@@ -562,7 +572,7 @@ function drawStationsForYear(year) {
   redrawStations();
 }
 
-// --- Time slider control ---
+// --- [5] Controls: time slider ---
 const SliderControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function () {
@@ -657,7 +667,7 @@ function updateCoverageLabel() {
   label.textContent = `Coverage (${scope}): ${withData}/${total} stations (${pct}%)`;
 }
 
-// --- Metric selector control ---
+// --- [5] Controls: metric selector ---
 const MetricControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function () {
@@ -695,7 +705,7 @@ function initMetricSelector() {
   });
 }
 
-// --- Temperature units control (°F / °C) ---
+// --- [5] Controls: temperature units (°F / °C) ---
 const UnitControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function () {
@@ -727,7 +737,7 @@ function initUnitSelector() {
   });
 }
 
-// --- Reset view button control ---
+// --- [5] Controls: reset view button ---
 const ResetControl = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function () {
@@ -755,7 +765,7 @@ setTimeout(() => {
   initResetButton();
 }, 0);
 
-// Build a small per-station time series trend line for the active metric
+// --- [6] Charts: per-station trend sparkline ---
 function renderStationChart(feature, canvasId) {
   const canvas = document.getElementById(canvasId);
   const fallback = document.getElementById(`${canvasId}-fallback`);
@@ -820,7 +830,7 @@ function renderStationChart(feature, canvasId) {
   });
 }
 
-// --- Load stations with all metrics ---
+// --- [7] Data loading + initialization ---
 fetch('data/stations_heatmetrics_all.geojson')
   .then(r => r.json())
   .then(geo => {
