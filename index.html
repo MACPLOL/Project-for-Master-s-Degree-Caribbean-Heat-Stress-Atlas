@@ -88,6 +88,37 @@
       color: var(--ui-muted);
     }
 
+    .slider-wrap .slider-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .slider-wrap .play-btn {
+      border: 1px solid var(--ui-border);
+      background: #fff;
+      color: var(--ui-text);
+      font: 600 10px/1 var(--ui-font);
+      padding: 4px 8px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .slider-wrap .play-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .slider-wrap .play-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
     .slider-wrap input[type="range"] {
       width:100%;
       accent-color: var(--ui-accent);
@@ -208,6 +239,10 @@ let YEARS = [];                     // filled after data loads
 let currentYear = null;
 let currentMetric = 'hot_days_32';  // default metric
 let tempUnit = 'F';                 // 'F' or 'C' for display
+let playInterval = null;
+let isPlaying = false;
+
+const PLAY_INTERVAL_MS = 900;
 
 const MONTH_NAMES = [null, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DELTA_YEAR_KEY = 'late_minus_early';
@@ -578,7 +613,10 @@ const SliderControl = L.Control.extend({
   onAdd: function () {
     const wrap = L.DomUtil.create('div', 'slider-wrap');
     wrap.innerHTML = `
-      <span class="label">Time</span>
+      <div class="slider-header">
+        <span class="label">Time</span>
+        <button class="play-btn" id="playPauseBtn" type="button" aria-pressed="false">Play</button>
+      </div>
       <input id="timeRange" type="range" min="0" max="0" value="0" disabled />
       <span class="value" id="timeLabel">Not available</span>
       <span class="coverage" id="coverageLabel">Coverage: not available</span>
@@ -616,6 +654,7 @@ function initTimeSlider(years) {
 
   updateTimeSliderAvailability();
   updateCoverageLabel();
+  updatePlayButtonState();
 }
 
 function updateTimeSliderAvailability() {
@@ -627,12 +666,68 @@ function updateTimeSliderAvailability() {
     range.disabled = true;
     if (wrap) wrap.classList.add('is-static');
     label.textContent = '2006–2025 minus 1961–1980';
+    stopPlayback({ silent: true });
   } else {
     range.disabled = false;
     if (wrap) wrap.classList.remove('is-static');
     const idx = Number(range.value);
     label.textContent = YEARS[idx] || currentYear || 'Not available';
   }
+}
+
+function updatePlayButtonState() {
+  const btn = document.getElementById('playPauseBtn');
+  if (!btn) return;
+  const disabled = currentMetric.startsWith('delta_') || !YEARS.length;
+  if (disabled && isPlaying) {
+    stopPlayback({ silent: true });
+  }
+  btn.disabled = disabled;
+  btn.textContent = isPlaying ? 'Pause' : 'Play';
+  btn.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+}
+
+function advanceYear() {
+  const range = document.getElementById('timeRange');
+  const label = document.getElementById('timeLabel');
+  if (!range) return;
+  const max = Number(range.max);
+  const current = Number(range.value);
+  if (!Number.isFinite(max) || max < 0 || !Number.isFinite(current)) return;
+  const next = current >= max ? 0 : current + 1;
+  range.value = String(next);
+  const year = YEARS[next];
+  if (label) label.textContent = year;
+  drawStationsForYear(year);
+}
+
+function startPlayback() {
+  if (isPlaying || !YEARS.length || currentMetric.startsWith('delta_')) return;
+  isPlaying = true;
+  updatePlayButtonState();
+  playInterval = setInterval(advanceYear, PLAY_INTERVAL_MS);
+}
+
+function stopPlayback(options = {}) {
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+  }
+  isPlaying = false;
+  if (!options.silent) updatePlayButtonState();
+}
+
+function initPlayButton() {
+  const btn = document.getElementById('playPauseBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (isPlaying) {
+      stopPlayback();
+    } else {
+      startPlayback();
+    }
+  });
+  updatePlayButtonState();
 }
 
 
@@ -701,6 +796,7 @@ function initMetricSelector() {
     currentMetric = select.value;
     updateLegendTitle();
     updateTimeSliderAvailability();
+    updatePlayButtonState();
     redrawStations();   // same layer, new metric
   });
 }
@@ -762,6 +858,7 @@ function initResetButton() {
 setTimeout(() => {
   initMetricSelector();
   initUnitSelector();
+  initPlayButton();
   initResetButton();
 }, 0);
 
