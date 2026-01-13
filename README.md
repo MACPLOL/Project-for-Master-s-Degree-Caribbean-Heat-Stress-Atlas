@@ -51,3 +51,17 @@ Methodology (steps):
 ## Notes
 - The raw data can be large, so, for future uses, I should keep derived files small and focused for the map. Divide and conquer!
 - Adding more data into the map can be messy, so a duplicate file should be made to better see the results before adding them to the final version.
+
+## NOAA CDO API workflow (Puerto Rico)
+This workflow rebuilds the map data from the NOAA CDO API without changing the site UI.
+
+Steps:
+1) Copy `.env.example` to `.env` and paste your token into `NOAA_TOKEN`.
+2) Run: `python3 fetch_noaa_cdo.py --station-count 15 --out data/noaa_pr_1960_2025.csv`
+3) Run: `python3 process_heatmetrics_multi.py data/noaa_pr_1960_2025.csv data/stations_heatmetrics_all.geojson`
+4) Open `index.html`.
+
+Notes:
+- The script selects stations with the highest data coverage in 1960-2025 and enforces unique municipalities (name before the first comma).
+- NOAA standard units are Fahrenheit. The processing script converts to Celsius for metrics, and the map can toggle to Fahrenheit for display.
+- Use `--dry-run` to list selected stations without downloading data.
